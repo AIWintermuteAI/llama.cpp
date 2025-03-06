@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
     // }
 
     common_params params;
-    params.n_predict = 64;
+    params.n_predict = -1;
     params.n_batch = 2048;
     params.n_ubatch = 1024;
     params.n_gpu_layers = 99;
@@ -359,7 +359,7 @@ int main(int argc, char** argv) {
     state.ctx = llama_init.context.get();
     state.model = llama_init.model.get();
     state.vocab = llama_model_get_vocab(state.model);
-    
+
     if (!state.model) {
         return 1;
     }
