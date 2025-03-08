@@ -68,6 +68,7 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", type=str, help="Path to the image file")
     parser.add_argument("--prompt", type=str, help="Prompt for the model")
     parser.add_argument("--n_predict", type=int, default=64, help="Number of tokens to predict")
+    parser.add_argument("--use_tts", action="store_true", help="Use piper-tts to speak the generated text")
     args = parser.parse_args()
 
     socket_path = args.socket
@@ -81,6 +82,14 @@ if __name__ == "__main__":
         if not os.path.exists(image_path):
             print(f"Error: Image file {image_path} does not exist.")
             sys.exit(1)
+
+    if args.use_tts:
+        print("Initializing TTS...")
+        # Download the model if it does not exist
+        tts_model_path = "~/.config/piper-tts/en_US-lessac-medium.onnx"
+        if not os.path.exists(os.path.expanduser(tts_model_path)):
+            print("Downloading the TTS model...")
+            os.system("echo 'Init' | piper --model en_US-lessac-medium --output_file .tmp.wav --data-dir ~/.config/piper-tts --download-dir ~/.config/piper-tts")
 
     client = VisionClient(socket_path)
 
@@ -106,8 +115,8 @@ if __name__ == "__main__":
                 ret, frame = cap.read()
                 if not ret:
                     print("Cam read error")
-                    cv2.imwrite(image_path, frame)
-                    print(f"Image captured and saved to {image_path}")
+                cv2.imwrite(image_path, frame)
+                print(f"Image captured and saved to {image_path}")
             elif user_input == 'q':
                 print("Quitting...")
                 cap.release()
@@ -129,9 +138,22 @@ if __name__ == "__main__":
 
         print("\nGenerated text:")
         print(response["result"]["text"])
+        if args.use_tts:
+            print("Speaking the generated text...")
+            # use piper-tts to speak the generated text
+            os.system(f"echo \"{response['result']['text']}\" | piper --model {tts_model_path} --output_file .tmp.wav")
+            # check the os and play the audio
+            if sys.platform == 'linux':
+                os.system("aplay .tmp.wav")
+            elif sys.platform == 'darwin':
+                os.system("afplay .tmp.wav")
+            else:
+                print("Unsupported OS")
+            os.remove(".tmp.wav")
 
         if not continuos:
             break
 
     if continuos:
         cap.release()
+        os.remove(image_path)
