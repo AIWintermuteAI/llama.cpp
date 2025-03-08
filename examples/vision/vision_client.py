@@ -3,6 +3,8 @@ import socket
 import json
 import sys
 import os
+import argparse
+import cv2
 
 class VisionClient:
     def __init__(self, socket_path):
@@ -39,6 +41,13 @@ class VisionClient:
         }
         return self._send_request(request)
 
+    def clear_kv_cache(self):
+        request = {
+            "id": self.next_id(),
+            "clear_kv_cache": {}
+        }
+        return self._send_request(request)
+
     def infer(self, image_path, prompt=None, n_predict=64):
         if prompt is None:
             prompt = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<img_placement>\nwhat do you see?<|im_end|>\n<|im_start|>assistant\n"
@@ -53,21 +62,25 @@ class VisionClient:
         }
         return self._send_request(request)
 
-def main():
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <socket_path> <image_path>")
-        sys.exit(1)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Vision Client")
+    parser.add_argument("--socket", type=str, help="Path to the UNIX socket")
+    parser.add_argument("--image_path", type=str, help="Path to the image file")
+    parser.add_argument("--prompt", type=str, help="Prompt for the model")
+    parser.add_argument("--n_predict", type=int, default=64, help="Number of tokens to predict")
+    args = parser.parse_args()
 
-    socket_path = sys.argv[1]
-    image_path = sys.argv[2]
+    socket_path = args.socket
+    image_path = args.image_path
 
     # Verify paths exist
     if not os.path.exists(socket_path):
         print(f"Error: Socket {socket_path} does not exist. Make sure the server is running.")
         sys.exit(1)
-    if not os.path.exists(image_path):
-        print(f"Error: Image file {image_path} does not exist.")
-        sys.exit(1)
+    if image_path:
+        if not os.path.exists(image_path):
+            print(f"Error: Image file {image_path} does not exist.")
+            sys.exit(1)
 
     client = VisionClient(socket_path)
 
@@ -78,16 +91,37 @@ def main():
         print(f"Failed to initialize: {response['error']}")
         sys.exit(1)
     print("Model initialized successfully!")
+    continuos = False
 
-    # Run inference
-    print("\nRunning inference...")
-    response = client.infer(image_path)
-    if not response["success"]:
-        print(f"Inference failed: {response['error']}")
-        sys.exit(1)
+    if not image_path:
+        cap = cv2.VideoCapture(0)
+        image_path = ".image.png"
+        continuos = True
 
-    print("\nGenerated text:")
-    print(response["result"]["text"])
+    while True:
+        if continuos:
+            ret, frame = cap.read()
+            if not ret:
+                print("Cam read error")
+            cv2.imwrite(image_path, frame)
 
-if __name__ == "__main__":
-    main()
+        # Run inference
+        print("\nRunning inference...")
+        image_abspath= os.path.abspath(image_path)
+        respose = client.clear_kv_cache()
+        if not response["success"]:
+            print(f"Failed to clear KV cache: {response['error']}")
+            sys.exit(1)
+        response = client.infer(image_abspath)
+        if not response["success"]:
+            print(f"Inference failed: {response['error']}")
+            sys.exit(1)
+
+        print("\nGenerated text:")
+        print(response["result"]["text"])
+
+        if not continuos:
+            break
+
+    if continuos:
+        cap.release()

@@ -131,6 +131,14 @@ static void send_success_response(int id, const std::string& generated_text, cha
     snprintf(resp_buffer, resp_buffer_size, "%s\n", resp.dump().c_str());
 }
 
+static void handle_clear_kv_cache_request(const json& request, char* resp_buffer, size_t resp_buffer_size) {
+    if (!state.initialized) {
+        send_error_response(request["id"], "Server not initialized", resp_buffer, resp_buffer_size);
+        return;
+    }
+    llama_kv_cache_clear(state.ctx);
+}
+
 static void handle_inference_request(const json& request, char* resp_buffer, size_t resp_buffer_size) {
     if (!state.initialized) {
         send_error_response(request["id"], "Server not initialized", resp_buffer, resp_buffer_size);
@@ -271,6 +279,9 @@ void handle_json_message(const json& msg, char* resp_buffer, size_t resp_buffer_
     }
     else if (msg.contains("infer")) {
         handle_inference_request(msg, resp_buffer, resp_buffer_size);
+    }
+    else if (msg.contains("clear_kv_cache")) {
+        handle_clear_kv_cache_request(msg, resp_buffer, resp_buffer_size);
     }
     else {
         send_error_response(msg["id"], "Unknown request type", resp_buffer, resp_buffer_size);
