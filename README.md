@@ -1,3 +1,37 @@
+# SmolVLM inference example with sockets
+
+Compile and run the server:
+```
+cmake -B build .
+cmake --build build -j4 --target llama-vision-socket
+```
+If any of the build dependencies are missing, install them (things like cmake or compiler).
+In another terminal install all the Python dependencies for Python client:
+```
+pip install opencv-python piper-tts
+```
+Obtain the SmolVLM model from HuggingFace and convert it (using this branch code) with `python3 convert_hf_to_gguf.py ../SmolVLM-256M-Instruct`. Make sure to specify the correct path to HuggingFace repository in the command.
+
+Then in first terminal run the server
+```
+./build/bin/llama-vision-socket --model ~/llama.cpp/models/SmolVLM-256M-Instruct-F16.gguf
+```
+In the second terminal run the client:
+```
+python vision_client.py --n_predict 32
+```
+Check the client code to see the parameters.
+For video step-by-step guide, watch the video below:
+
+<div align="left">
+      <a href="https://youtu.be/KAbpfWqfxZE">
+         <img src="https://img.youtube.com/vi/KAbpfWqfxZE/0.jpg" style="width:100%;">
+      </a>
+</div>
+
+And remember - this is Work in Progress based on Work in Progress! Things might break, be ready to debug them.
+Below is the original README.
+
 # llama.cpp
 
 ![llama](https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png)
